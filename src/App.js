@@ -26,7 +26,7 @@ const CipherGame = () => {
   const [practiceAnswers, setPracticeAnswers] = useState([]);
   const [showPracticeIncomplete, setShowPracticeIncomplete] = useState(false);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false); 
-  const [actualIncorrectIndices, setActualIncorrectIndices] = useState([]); // Track actual incorrect indices
+  const [actualIncorrectIndices, setActualIncorrectIndices] = useState([]); 
 
   useEffect(() => {
     fetch("/data.json")
