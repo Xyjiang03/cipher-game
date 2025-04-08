@@ -283,3 +283,36 @@ button {
 .retry-btn:hover {
     background-color: #3c82f6;
 }
+
+/* Keep your base .cipher-letter style */
+.cipher-letter {
+    background-color: #161b22;      /* Dark background for each letter box */
+    border: 2px solid #58a6ff;      /* Blue-ish border by default */
+    color: #e6edf3;                 /* Light text color */
+    font-size: 22px;
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    text-align: center;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 4px;                    /* Space between letters */
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* For Grammarly suggestions, only change the border and (optionally) add a glow */
+  .grammarly-suggested {
+    border-color: #7ee787;  /* bright green border */
+    box-shadow: 0 0 6px #7ee787; /* optional glow around the border */
+  }
+
+  .grammarly-note {
+    color: #7ee787;              /* Bright green text color */
+    border: 2px solid #7ee787;   /* Same bright green border */
+    background-color: #161b22;   /* Match your existing background or set to transparent */
+    padding: 8px 12px;           /* Spacing around the text */
+    border-radius: 8px;          /* Rounds the corners */
+    display: inline-block;       /* So the border wraps neatly around the text */
+    margin: 10px auto;           /* Center it with some spacing above/below */
+    font-weight: bold;           /* Make the text stand out */
+  }
