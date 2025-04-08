@@ -2,11 +2,17 @@ import React, { useState, useEffect } from "react";
 import "./CipherGame.css";
 import seedrandom from "seedrandom";
 
+// Fixed cipher rule remains unchanged.
 const fixedCipherRule = {
   a: "m", b: "n", c: "b", d: "v", e: "c", f: "x", g: "z", h: "l", i: "k", j: "j",
   k: "h", l: "g", m: "f", n: "d", o: "s", p: "a", q: "p", r: "o", s: "i", t: "u",
   u: "y", v: "t", w: "r", x: "e", y: "w", z: "q"
 };
+// Global systematic indices for all grammarly rounds (if provided in data)
+let globalGrammarlySystematicIndices = null; // ← (added global variable)
+// Global accuracy rate for all grammarly rounds (if provided in data)
+let globalGrammarlyAccuracyRate = null; // ← (new global variable for accuracy rate)
+
 const shuffleArray = (array, rng) => {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
@@ -16,7 +22,7 @@ const shuffleArray = (array, rng) => {
   return result;
 };
 
-const cipherCache = {}; 
+const cipherCache = {};
 
 const CipherGame = () => {
   const [data, setData] = useState(null);
@@ -34,13 +40,28 @@ const CipherGame = () => {
   const [showInstructions, setShowInstructions] = useState(true);
   const [practiceAnswers, setPracticeAnswers] = useState([]);
   const [showPracticeIncomplete, setShowPracticeIncomplete] = useState(false);
-  const [showCompletionScreen, setShowCompletionScreen] = useState(false); 
-  const [actualIncorrectIndices, setActualIncorrectIndices] = useState([]); 
+  const [showCompletionScreen, setShowCompletionScreen] = useState(false);
+  const [actualIncorrectIndices, setActualIncorrectIndices] = useState([]);
 
   useEffect(() => {
+    // Fetching data from /data.json
     fetch("/data.json")
       .then((response) => response.json())
       .then((jsonData) => {
+        // If grammarlyRounds is an object (with systematicIndices, accuracyRate and rounds), then set the global values
+        if (
+          jsonData.grammarlyRounds &&
+          typeof jsonData.grammarlyRounds === "object" &&
+          jsonData.grammarlyRounds.systematicIndices &&
+          jsonData.grammarlyRounds.rounds
+        ) {
+          globalGrammarlySystematicIndices = jsonData.grammarlyRounds.systematicIndices; // Set global systematic indices
+          // Set global accuracy rate if provided; otherwise, it will remain null
+          if (jsonData.grammarlyRounds.accuracyRate !== undefined) {
+            globalGrammarlyAccuracyRate = jsonData.grammarlyRounds.accuracyRate;
+          }
+          jsonData.grammarlyRounds = jsonData.grammarlyRounds.rounds; // use rounds array from the object
+        }
         setData(jsonData);
         generateCipher(jsonData.practice[0]);
       })
@@ -53,61 +74,85 @@ const CipherGame = () => {
       return;
     }
 
-    const rng = seedrandom(reference); // deterministic based on input
+    // If reference is an object, extract its text; otherwise, use it directly.
+    const refText = typeof reference === "string" ? reference : reference.text;
+    const rng = seedrandom(refText); // deterministic based on the reference text
 
     let encrypted, baseIncorrectIndices, chars, eligibleIndices;
-    if (cipherCache[reference]) {
-      encrypted = cipherCache[reference].encrypted;
-      baseIncorrectIndices = cipherCache[reference].incorrectIndices;
+    if (cipherCache[refText]) {
+      encrypted = cipherCache[refText].encrypted;
+      baseIncorrectIndices = cipherCache[refText].incorrectIndices;
       setCipherText(encrypted);
     } else {
-      chars = reference.split("");
-      eligibleIndices = chars.map((_, i) => i).filter(i => /[a-zA-Z]/.test(chars[i]));
+      chars = refText.split("");
+      eligibleIndices = chars.map((_, i) => i).filter((i) => /[a-zA-Z]/.test(chars[i]));
       const numToEncodeCorrectly = Math.floor(eligibleIndices.length / 2);
       const shuffledIndices = [...eligibleIndices].sort(() => rng() - 0.5);
       const correctIndicesSet = new Set(shuffledIndices.slice(0, numToEncodeCorrectly));
-      baseIncorrectIndices = eligibleIndices.filter(i => !correctIndicesSet.has(i));
+      baseIncorrectIndices = eligibleIndices.filter((i) => !correctIndicesSet.has(i));
 
-      encrypted = chars.map((char, index) => {
-        const lower = char.toLowerCase();
-        const isAlpha = /[a-zA-Z]/.test(char);
-        if (!isAlpha) return char;
-        if (correctIndicesSet.has(index)) {
-          return fixedCipherRule[lower] || char;
-        } else {
-          let randomChar;
-          do {
-            randomChar = String.fromCharCode(97 + Math.floor(rng() * 26));
-          } while (randomChar === fixedCipherRule[lower] || randomChar === lower);
-          return randomChar;
-        }
-      }).join("");
+      encrypted = chars
+        .map((char, index) => {
+          const lower = char.toLowerCase();
+          const isAlpha = /[a-zA-Z]/.test(char);
+          if (!isAlpha) return char;
+          if (correctIndicesSet.has(index)) {
+            return fixedCipherRule[lower] || char;
+          } else {
+            let randomChar;
+            do {
+              randomChar = String.fromCharCode(97 + Math.floor(rng() * 26));
+            } while (randomChar === fixedCipherRule[lower] || randomChar === lower);
+            return randomChar;
+          }
+        })
+        .join("");
 
-      cipherCache[reference] = {
+      cipherCache[refText] = {
         encrypted,
-        incorrectIndices: baseIncorrectIndices
+        incorrectIndices: baseIncorrectIndices,
       };
       setCipherText(encrypted);
     }
 
     // For all rounds, the cipher text generation is the same.
-    // Now, if it's a grammarly round, adjust the highlighted indices (actualIncorrectIndices) to be a controlled mix of true errors and false positives.
+    // If it's a grammarly round, adjust the highlighted indices (actualIncorrectIndices)
     if (roundType === "grammarly") {
       if (!eligibleIndices) {
         // If eligibleIndices wasn't computed in the cached branch, compute it now
-        chars = reference.split("");
-        eligibleIndices = chars.map((_, i) => i).filter(i => /[a-zA-Z]/.test(chars[i]));
+        chars = refText.split("");
+        eligibleIndices = chars.map((_, i) => i).filter((i) => /[a-zA-Z]/.test(chars[i]));
       }
-      // Set the accuracy rate here (e.g., 0.5 for 50%, 0.75 for 75%, 1 for 100%, etc.)
-      const accuracyRate = 0.5;
+      // Use the global accuracy rate if provided, otherwise use a fallback default (0.5)
+      const accuracyRate = globalGrammarlyAccuracyRate !== null ? globalGrammarlyAccuracyRate : 0.5;
       const totalHighlights = baseIncorrectIndices.length;
       const trueCount = Math.floor(totalHighlights * accuracyRate);
       const falseCount = totalHighlights - trueCount;
       const trueSuggestions = shuffleArray([...baseIncorrectIndices], rng).slice(0, trueCount);
-      const falseCandidates = eligibleIndices.filter(i => !baseIncorrectIndices.includes(i));
+      const falseCandidates = eligibleIndices.filter((i) => !baseIncorrectIndices.includes(i));
       const falseSuggestions = shuffleArray([...falseCandidates], rng).slice(0, falseCount);
       const suggestedIndices = [...trueSuggestions, ...falseSuggestions].sort((a, b) => a - b);
-      setActualIncorrectIndices(suggestedIndices);
+
+      // Additional rule: Use global systematic indices if they exist for all grammarly rounds.
+      let additionalIndices = [];
+      if (globalGrammarlySystematicIndices && Array.isArray(globalGrammarlySystematicIndices)) {
+        additionalIndices = globalGrammarlySystematicIndices;
+      } else {
+        // Fallback to default rule: always highlight incorrectly ciphered occurrences of "e"
+        const configuredLetter = "e"; // Change this value to highlight a different letter.
+        for (let i = 0; i < refText.length; i++) {
+          if (refText[i].toLowerCase() === configuredLetter.toLowerCase()) {
+            const expected = fixedCipherRule[refText[i].toLowerCase()] || refText[i];
+            if (encrypted[i] !== expected && !suggestedIndices.includes(i)) {
+              additionalIndices.push(i);
+            }
+          }
+        }
+      }
+      const finalSuggestedIndices = [
+        ...new Set([...suggestedIndices, ...additionalIndices]),
+      ].sort((a, b) => a - b);
+      setActualIncorrectIndices(finalSuggestedIndices);
     } else {
       setActualIncorrectIndices(baseIncorrectIndices);
     }
@@ -161,34 +206,40 @@ const CipherGame = () => {
 
     const sortedUser = [...incorrectIndices].sort((a, b) => a - b);
     const sortedActual = [...actualIncorrectIndices].sort((a, b) => a - b);
-    const arraysEqual = sortedUser.length === sortedActual.length &&
+    const arraysEqual =
+      sortedUser.length === sortedActual.length &&
       sortedUser.every((value, index) => value === sortedActual[index]);
 
-    const isAnswerCorrect = (!userThinksCorrect && arraysEqual);
+    const isAnswerCorrect = !userThinksCorrect && arraysEqual;
 
     const updatedAnswers = [...practiceAnswers];
     updatedAnswers[round] = {
       isCorrect: isAnswerCorrect,
       userThinksCorrect: userThinksCorrect,
       incorrectIndices: [...incorrectIndices],
-      plainText: roundType === "practice" ? data.practice[round] :
-                 roundType === "game" ? data.gameRounds[round] :
-                 data.grammarlyRounds[round].reference,
+      plainText:
+        roundType === "practice"
+          ? data.practice[round]
+          : roundType === "game"
+          ? data.gameRounds[round]
+          : data.grammarlyRounds[round],
       cipherText: cipherText,
-      actualIncorrectIndices: [...actualIncorrectIndices]
+      actualIncorrectIndices: [...actualIncorrectIndices],
     };
     setPracticeAnswers(updatedAnswers);
 
     if (roundType === "practice") {
-      if (isAnswerCorrect) {
-        // If the answer in the practice round is correct, move immediately to game rounds
-        setRoundType("game");
-        setRound(0);
-        generateCipher(data.gameRounds[0]);
+      if (round < data.practice.length - 1) {
+        // Proceed to the next practice round regardless of correctness
+        setRound(round + 1);
+        generateCipher(data.practice[round + 1], updatedAnswers[round + 1]);
       } else {
-        if (round < data.practice.length - 1) {
-          setRound(round + 1);
-          generateCipher(data.practice[round + 1], updatedAnswers[round + 1]);
+        // Final practice round: check if all answers are correct.
+        const allCorrect = updatedAnswers.every((answer) => answer?.isCorrect);
+        if (allCorrect) {
+          setRoundType("game");
+          setRound(0);
+          generateCipher(data.gameRounds[0]);
         } else {
           setShowPracticeIncomplete(true);
         }
@@ -223,13 +274,16 @@ const CipherGame = () => {
         <p className="completion-message">
           You have successfully completed all the practice and game rounds.
         </p>
-        <button className="restart-btn" onClick={() => {
-          setShowCompletionScreen(false);
-          setRoundType("practice");
-          setRound(0);
-          setPracticeAnswers([]);
-          generateCipher(data.practice[0]);
-        }}>
+        <button
+          className="restart-btn"
+          onClick={() => {
+            setShowCompletionScreen(false);
+            setRoundType("practice");
+            setRound(0);
+            setPracticeAnswers([]);
+            generateCipher(data.practice[0]);
+          }}
+        >
           Play Again
         </button>
       </div>
@@ -265,9 +319,13 @@ const CipherGame = () => {
         <h3 className="task-title">Your Task:</h3>
         <ul className="task-list">
           <li>First select whether the example is correct or incorrect.</li>
-          <li>After that, select where in the text there are letters out of place or use the text box to describe the error.</li>
+          <li>
+            After that, select where in the text there are letters out of place or use the text box to describe the error.
+          </li>
         </ul>
-        <button className="start-button" onClick={() => setShowInstructions(false)}>Begin Challenge</button>
+        <button className="start-button" onClick={() => setShowInstructions(false)}>
+          Begin Challenge
+        </button>
       </div>
     );
   }
@@ -277,13 +335,16 @@ const CipherGame = () => {
       <div className="summary-screen">
         <h1 className="summary-title">Practice Round Incomplete</h1>
         <p className="summary-box">You did not answer all the practice questions correctly</p>
-        <button className="retry-btn" onClick={() => {
-          setRound(0);
-          setShowPracticeIncomplete(false);
-          if (practiceAnswers[0]) {
-            generateCipher(practiceAnswers[0].plainText, practiceAnswers[0]);
-          }
-        }}>
+        <button
+          className="retry-btn"
+          onClick={() => {
+            setRound(0);
+            setShowPracticeIncomplete(false);
+            if (practiceAnswers[0]) {
+              generateCipher(practiceAnswers[0].plainText, practiceAnswers[0]);
+            }
+          }}
+        >
           Try Again
         </button>
       </div>
@@ -293,15 +354,22 @@ const CipherGame = () => {
   return (
     <div className="cipher-game">
       <h1 className="title">
-        {roundType === "practice" ? "Practice Task" : roundType === "game" ? "Game Round" : "Grammarly Round"} {round + 1}
+        {roundType === "practice"
+          ? "Practice Task"
+          : roundType === "game"
+          ? "Game Round"
+          : "Grammarly Round"}{" "}
+        {round + 1}
       </h1>
-      <p className="reference-text"><strong>Reference Text:</strong> {
-        roundType === "practice" ? data.practice[round] :
-        roundType === "game" ? data.gameRounds[round] :
-        data.grammarlyRounds[round].reference
-      }</p>
+      <p className="reference-text">
+        <strong>Reference Text:</strong>{" "}
+        {roundType === "practice"
+          ? data.practice[round]
+          : roundType === "game"
+          ? data.gameRounds[round]
+          : data.grammarlyRounds[round]}
+      </p>
 
-      {/* Display Grammarly note in Grammarly round */}
       {roundType === "grammarly" && (
         <p className="grammarly-note">
           Grammarly suggests that the highlighted letters may be incorrect
@@ -311,14 +379,16 @@ const CipherGame = () => {
       <h2 className="encoded-message-title">Encoded Message:</h2>
       <div className="cipher-container">
         {cipherText.split("").map((char, index) => {
-          // For Grammarly rounds, add a special highlight to suggested letters
-          const isGrammarlySuggested = roundType === "grammarly" && actualIncorrectIndices.includes(index);
+          const isGrammarlySuggested =
+            roundType === "grammarly" && actualIncorrectIndices.includes(index);
           const isUserMarkedError = incorrectIndices.includes(index);
 
           return (
             <span
               key={index}
-              className={`cipher-letter ${isUserMarkedError ? "error" : ""} ${isGrammarlySuggested ? "grammarly-suggested" : ""}`}
+              className={`cipher-letter ${isUserMarkedError ? "error" : ""} ${
+                isGrammarlySuggested ? "grammarly-suggested" : ""
+              }`}
               onClick={() => handleLetterClick(index)}
             >
               {char}
@@ -347,7 +417,9 @@ const CipherGame = () => {
         </button>
       )}
 
-      <button className="show-rules-btn" onClick={() => setShowRules(true)}>📜 Show Cipher Rules</button>
+      <button className="show-rules-btn" onClick={() => setShowRules(true)}>
+        📜 Show Cipher Rules
+      </button>
 
       {showRules && (
         <div className="cipher-rules-modal">
@@ -359,7 +431,9 @@ const CipherGame = () => {
               </p>
             ))}
           </div>
-          <button className="close-rules-btn" onClick={() => setShowRules(false)}>Close</button>
+          <button className="close-rules-btn" onClick={() => setShowRules(false)}>
+            Close
+          </button>
         </div>
       )}
     </div>

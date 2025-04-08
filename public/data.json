@@ -8,9 +8,13 @@
       "Let's see how well you decode this message.",
       "This is another challenge for you."
     ],
-    "grammarlyRounds": [
-      "The first official round starts now.",
-      "Let's see how well you decode this message."
-    ]
+    "grammarlyRounds": {
+      "systematicIndices": [2, 5, 8],
+      "accuracyRate": 0.75,
+      "rounds": [
+        "The first official round starts now.",
+        "Let's see how well you decode this message."
+      ]
+    }
   }
   
