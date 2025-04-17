@@ -1,4 +1,367 @@
-import React, { useState, useEffect } from "react";
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Cipher Game</title>
+    <style>
+    /* General styles */
+body {
+    background-color: #0d1117;
+    color: #e6edf3;
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+}
+
+/* Main title */
+h1 {
+    font-size: 32px;
+    font-weight: bold;
+    color: #58a6ff;
+    margin-bottom: 15px;
+}
+
+/* Cipher Instructions Container */
+.cipher-instructions {
+    background: #161b22;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 650px;
+    margin: 50px auto;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
+    border: 2px solid #58a6ff;
+}
+
+/* Cipher Key Section */
+.cipher-key-container {
+    background: #0d1117;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Cipher Key Titles */
+.cipher-key-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #e6edf3;
+    margin-bottom: 10px;
+}
+
+/* Ciphertext & Plaintext Boxes */
+.cipher-box {
+    background: #21262d;
+    border: 2px solid #58a6ff;
+    color: #e6edf3;
+    font-size: 18px;
+    padding: 12px;
+    border-radius: 8px;
+    width: 95%;
+    margin: 8px auto;
+    display: block;
+    text-align: center;
+}
+
+/* Task Section */
+.task-section {
+    background: #21262d;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #58a6ff;
+    color: #e6edf3;
+    font-size: 16px;
+    max-width: 95%;
+    margin: 20px auto;
+    text-align: left;
+}
+
+/* Task Title */
+.task-title {
+    font-weight: bold;
+    font-size: 18px;
+    color: #58a6ff;
+    margin-bottom: 10px;
+}
+
+/* Task List */
+.task-list {
+    text-align: left;
+    padding-left: 15px;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Begin Challenge Button */
+.begin-challenge-btn {
+    background: #1f6feb;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: block;
+    margin: 25px auto;
+    transition: all 0.2s ease-in-out;
+    border: none;
+    width: 90%;
+}
+
+.begin-challenge-btn:hover {
+    background: #2a7de1;
+    transform: scale(1.05);
+}
+
+
+/* Cipher Game Container */
+.cipher-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 20px auto;
+    max-width: 80%;
+}
+
+/* Cipher Text Letters */
+.cipher-letter {
+    background-color: #161b22;
+    border: 2px solid #58a6ff;
+    color: #e6edf3;
+    font-size: 22px;
+    width: 50px;
+    height: 50px;
+    text-align: center;
+    line-height: 50px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.error {
+    background-color: #da3633 !important;
+    border-color: #ff7b72 !important;
+}
+
+/* Buttons Styling */
+button {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Yes and No Buttons */
+.yes-btn, .no-btn {
+    background: #30363d;
+    color: white;
+    margin: 10px;
+    min-width: 100px;
+}
+
+.yes-btn:hover {
+    background: #238636;
+}
+
+.yes-btn.selected {
+    background: #238636;
+}
+
+.no-btn:hover {
+    background: #da3633;
+}
+
+.no-btn.selected {
+    background: #da3633;
+}
+
+/* Continue Button */
+.continue-btn {
+    background: #1f6feb;
+    color: white;
+    margin-top: 15px;
+    padding: 12px 24px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: block;
+    margin: 15px auto;
+}
+
+.continue-btn:hover {
+    background: #2ea043;
+}
+
+/* Show Cipher Rules Button */
+.show-rules-btn {
+    background: #58a6ff;
+    color: white;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    margin-top: 15px;
+    cursor: pointer;
+}
+
+/* Cipher Rules Modal */
+.cipher-rules-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #161b22;
+    border: 2px solid #58a6ff;
+    padding: 20px;
+    border-radius: 10px;
+    width: 350px;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: center;
+    z-index: 9999;
+}
+
+.cipher-rules-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 10px;
+}
+
+.cipher-mapping {
+    font-size: 18px;
+    color: white;
+    text-align: left;
+    margin: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Close Button in Cipher Rules */
+.close-rules-btn {
+    background: #da3633;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-top: 10px;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    font-size: 16px;
+}
+
+.summary-screen {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.summary-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: white;
+}
+
+.summary-box {
+    background-color: #161b22;
+    color: #e6edf3;
+    padding: 20px;
+    margin: 20px auto;
+    border-radius: 8px;
+    border: 2px solid #58a6ff;
+    width: 50%;
+    font-size: 18px;
+}
+
+.retry-btn {
+    background-color: #1f6feb;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.retry-btn:hover {
+    background-color: #3c82f6;
+}
+
+/* Keep your base .cipher-letter style */
+.cipher-letter {
+    background-color: #161b22;      /* Dark background for each letter box */
+    border: 2px solid #58a6ff;      /* Blue-ish border by default */
+    color: #e6edf3;                 /* Light text color */
+    font-size: 22px;
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    text-align: center;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 4px;                    /* Space between letters */
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* For Grammarly suggestions, only change the border and (optionally) add a glow */
+  .grammarly-suggested {
+    border-color: #7ee787;  /* bright green border */
+    box-shadow: 0 0 6px #7ee787; /* optional glow around the border */
+  }
+
+  .grammarly-note {
+    color: #7ee787;              /* Bright green text color */
+    border: 2px solid #7ee787;   /* Same bright green border */
+    background-color: #161b22;   /* Match your existing background or set to transparent */
+    padding: 8px 12px;           /* Spacing around the text */
+    border-radius: 8px;          /* Rounds the corners */
+    display: inline-block;       /* So the border wraps neatly around the text */
+    margin: 10px auto;           /* Center it with some spacing above/below */
+    font-weight: bold;           /* Make the text stand out */
+  }
+
+    </style>
+</head>
+<body>
+    <div id="root">Loading...</div>
+    
+<script>
+const mockFetch = (url) => {
+    if (url.endsWith("data.json")) {
+        return Promise.resolve({
+            json: () => Promise.resolve({
+    "practice": [
+      "a.",
+      "b."
+    ],
+    "gameRounds": [
+      "The first official round starts now.",
+      "Let's see how well you decode this message.",
+      "This is another challenge for you."
+    ],
+    "grammarlyRounds": {
+      "systematicIndices": [2, 5, 8],
+      "accuracyRate": 0.75,
+      "rounds": [
+        "A gentle stream flows through the peaceful meadow.",
+        "Autumn leaves fall gracefully in the park."
+      ]
+    }
+  }
+  )
+        });
+    }
+    return Promise.reject("Unknown fetch target");
+};
+window.fetch = mockFetch;
+</script>
+
+    <script type="module">
+    import React, { useState, useEffect } from "react";
 import "./CipherGame.css";
 import seedrandom from "seedrandom";
 
@@ -75,7 +438,6 @@ const CipherGame = () => {
   const [showPracticeIncomplete, setShowPracticeIncomplete] = useState(false);
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
   const [showRoundSummary, setShowRoundSummary] = useState(false);
-  const [lastCompletedRoundType, setLastCompletedRoundType] = useState(null);
   const [evaluationMetrics, setEvaluationMetrics] = useState({
     practice: null,
     game: null,
@@ -286,34 +648,40 @@ const CipherGame = () => {
 
     if (roundType === "practice") {
       if (round < data.practice.length - 1) {
+        // Proceed to the next practice round regardless of correctness
         setRound(round + 1);
         generateCipher(data.practice[round + 1], updatedAnswers[round + 1]);
       } else {
+        // Final practice round: check if all answers are correct.
         const allCorrect = updatedAnswers.every((answer) => answer?.isCorrect);
-        setEvaluationMetrics(prev => ({ ...prev, practice: calculateEvaluationMetrics(updatedAnswers) }));
-        setLastCompletedRoundType("practice");
         if (allCorrect) {
+          setRoundType("game");
+          setEvaluationMetrics(prev => ({ ...prev, practice: calculateEvaluationMetrics(updatedAnswers) }));
           setShowRoundSummary(true);
+          setRound(0);
+          generateCipher(data.gameRounds[0]);
         } else {
           setShowPracticeIncomplete(true);
         }
       }
-    } else if (roundType === "game") {
+      } else if (roundType === "game") {
       if (round < data.gameRounds.length - 1) {
         setRound(round + 1);
         generateCipher(data.gameRounds[round + 1]);
       } else {
+        setRoundType("grammarly");
         setEvaluationMetrics(prev => ({ ...prev, game: calculateEvaluationMetrics(updatedAnswers) }));
-        setLastCompletedRoundType("game");
         setShowRoundSummary(true);
+        setRound(0);
+        generateCipher(data.grammarlyRounds[0]);
       }
     } else if (roundType === "grammarly") {
       if (round < data.grammarlyRounds.length - 1) {
         setRound(round + 1);
         generateCipher(data.grammarlyRounds[round + 1]);
       } else {
+        setShowCompletionScreen(true);
         setEvaluationMetrics(prev => ({ ...prev, grammarly: calculateEvaluationMetrics(updatedAnswers) }));
-        setLastCompletedRoundType("grammarly");
         setShowRoundSummary(true);
       }
     }
@@ -323,45 +691,34 @@ const CipherGame = () => {
     return <p>Loading...</p>;
   }
 
-  if (showRoundSummary && lastCompletedRoundType) {
+  if (showRoundSummary) {
+    const currentPhase = roundType === "game" ? "practice" : roundType === "grammarly" ? "game" : "grammarly";
     return (
       <div className="completion-screen">
-        <h1 className="completion-title">
-          {lastCompletedRoundType.charAt(0).toUpperCase() + lastCompletedRoundType.slice(1)} Round Summary
-        </h1>
-        {evaluationMetrics[lastCompletedRoundType] && (
+        <h1 className="completion-title">{currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1)} Round Summary</h1>
+        {evaluationMetrics[currentPhase] && (
           <div className="metrics-box">
-            <p>✅ True Positives: {evaluationMetrics[lastCompletedRoundType].TP}</p>
-            <p>⚠️ False Positives (already correct): {evaluationMetrics[lastCompletedRoundType].FP}</p>
-            <p>❌ False Negatives (missed errors): {evaluationMetrics[lastCompletedRoundType].FN}</p>
-            <p>🎯 Precision: {evaluationMetrics[lastCompletedRoundType].precision}</p>
-            <p>📈 Recall: {evaluationMetrics[lastCompletedRoundType].recall}</p>
+            <p>✅ True Positives: {evaluationMetrics[currentPhase].TP}</p>
+            <p>⚠️ False Positives (already correct): {evaluationMetrics[currentPhase].FP}</p>
+            <p>❌ False Negatives (missed errors): {evaluationMetrics[currentPhase].FN}</p>
+            <p>🎯 Precision: {evaluationMetrics[currentPhase].precision}</p>
+            <p>📈 Recall: {evaluationMetrics[currentPhase].recall}</p>
           </div>
         )}
-        {lastCompletedRoundType === "practice" ? (
-          <p className="summary-box">✅ All practice answers correct! You may proceed.</p>
-        ) : null}
         <button
           className="continue-btn"
           onClick={() => {
             setShowRoundSummary(false);
-            if (lastCompletedRoundType === "practice") {
-              setRoundType("game");
+            if (roundType === "game") {
               setRound(0);
               generateCipher(data.gameRounds[0]);
-            } else if (lastCompletedRoundType === "game") {
-              setRoundType("grammarly");
+            } else if (roundType === "grammarly") {
               setRound(0);
               generateCipher(data.grammarlyRounds[0]);
-            } else if (lastCompletedRoundType === "grammarly") {
-              setShowCompletionScreen(true);
             }
           }}
-          disabled={lastCompletedRoundType === "practice" && showPracticeIncomplete}
         >
-          {lastCompletedRoundType === "grammarly"
-            ? "Continue to Summary Page"
-            : `Continue to ${lastCompletedRoundType === "practice" ? "Game" : "Grammarly"} Round`}
+          {roundType === "grammarly" ? "Continue to Summary Page" : `Continue to ${roundType.charAt(0).toUpperCase() + roundType.slice(1)} Round`}
         </button>
       </div>
     );
@@ -565,3 +922,6 @@ const CipherGame = () => {
 };
 
 export default CipherGame;
+    </script>
+</body>
+</html>
