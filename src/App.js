@@ -45,15 +45,11 @@ const calculateEvaluationMetrics = (answers) => {
     }
   });
 
-  const precision = TP + FP === 0 ? 0 : TP / (TP + FP);
-  const recall = TP + FN === 0 ? 0 : TP / (TP + FN);
 
   return {
     TP,
     FP,
     FN,
-    precision: precision.toFixed(2),
-    recall: recall.toFixed(2),
   };
 };
 
@@ -247,13 +243,24 @@ const CipherGame = () => {
   const handleContinue = () => {
     if (!data) return;
 
-    const sortedUser = [...incorrectIndices].sort((a, b) => a - b);
-    const sortedActual = [...actualIncorrectIndices].sort((a, b) => a - b);
-    const arraysEqual =
-      sortedUser.length === sortedActual.length &&
-      sortedUser.every((value, index) => value === sortedActual[index]);
+    const userSet = new Set(incorrectIndices);
+    const actualSet = new Set(actualIncorrectIndices);
 
-    const isAnswerCorrect = !userThinksCorrect && arraysEqual;
+    // Evaluate TP, FP, FN manually to determine correctness
+    let correctCount = 0;
+    let falsePositive = 0;
+    let falseNegative = 0;
+
+    for (let i of incorrectIndices) {
+      if (actualSet.has(i)) correctCount++;
+      else falsePositive++;
+    }
+
+    for (let i of actualIncorrectIndices) {
+      if (!userSet.has(i)) falseNegative++;
+    }
+
+    const isAnswerCorrect = !userThinksCorrect && falsePositive === 0 && falseNegative === 0;
 
     const updatedAnswers = [...practiceAnswers];
     updatedAnswers[round] = {
@@ -289,10 +296,13 @@ const CipherGame = () => {
         setRound(round + 1);
         generateCipher(data.practice[round + 1], updatedAnswers[round + 1]);
       } else {
-        const allCorrect = updatedAnswers.every((answer) => answer?.isCorrect);
-        setEvaluationMetrics(prev => ({ ...prev, practice: calculateEvaluationMetrics(updatedAnswers) }));
+        const finalAnswers = data.practice.map((_, i) => updatedAnswers[i]);
+        const allCorrect = finalAnswers.every((answer) => answer?.isCorrect);
+        setEvaluationMetrics(prev => ({ ...prev, practice: calculateEvaluationMetrics(finalAnswers) }));
         setLastCompletedRoundType("practice");
+        setPracticeAnswers(finalAnswers); // Ensure state is updated for retry comparison
         if (allCorrect) {
+          setShowPracticeIncomplete(false);
           setShowRoundSummary(true);
         } else {
           setShowPracticeIncomplete(true);
@@ -331,11 +341,9 @@ const CipherGame = () => {
         </h1>
         {evaluationMetrics[lastCompletedRoundType] && (
           <div className="metrics-box">
-            <p>✅ True Positives: {evaluationMetrics[lastCompletedRoundType].TP}</p>
-            <p>⚠️ False Positives (already correct): {evaluationMetrics[lastCompletedRoundType].FP}</p>
-            <p>❌ False Negatives (missed errors): {evaluationMetrics[lastCompletedRoundType].FN}</p>
-            <p>🎯 Precision: {evaluationMetrics[lastCompletedRoundType].precision}</p>
-            <p>📈 Recall: {evaluationMetrics[lastCompletedRoundType].recall}</p>
+            <p>✅ The number of actual mistakes you correctly flagged: {evaluationMetrics[lastCompletedRoundType].TP}</p>
+            <p>⚠️ The number of things you marked as wrong that were actually correct: {evaluationMetrics[lastCompletedRoundType].FP}</p>
+            <p>❌ The number of real mistakes you missed: {evaluationMetrics[lastCompletedRoundType].FN}</p>
           </div>
         )}
         {lastCompletedRoundType === "practice" ? (
@@ -377,11 +385,9 @@ const CipherGame = () => {
           evaluationMetrics[type] && (
             <div key={type} className="metrics-box">
               <h3>{type.charAt(0).toUpperCase() + type.slice(1)} Round Metrics</h3>
-              <p>✅ True Positives: {evaluationMetrics[type].TP}</p>
-              <p>⚠️ False Positives (already correct): {evaluationMetrics[type].FP}</p>
-              <p>❌ False Negatives (missed errors): {evaluationMetrics[type].FN}</p>
-              <p>🎯 Precision: {evaluationMetrics[type].precision}</p>
-              <p>📈 Recall: {evaluationMetrics[type].recall}</p>
+              <p>✅ he number of actual mistakes you correctly flagged: {evaluationMetrics[type].TP}</p>
+              <p>⚠️ The number of things you marked as wrong that were actually correct: {evaluationMetrics[type].FP}</p>
+              <p>❌ The number of real mistakes you missed: {evaluationMetrics[type].FN}</p>
             </div>
           )
         )}
@@ -397,18 +403,6 @@ const CipherGame = () => {
           }}
         >
           📁 Download Game Log
-        </button>
-        <button
-          className="restart-btn"
-          onClick={() => {
-            setShowCompletionScreen(false);
-            setRoundType("practice");
-            setRound(0);
-            setPracticeAnswers([]);
-            generateCipher(data.practice[0]);
-          }}
-        >
-          Play Again
         </button>
       </div>
     );
@@ -459,6 +453,13 @@ const CipherGame = () => {
       <div className="summary-screen">
         <h1 className="summary-title">Practice Round Incomplete</h1>
         <p className="summary-box">You did not answer all the practice questions correctly</p>
+        {evaluationMetrics.practice && (
+          <div className="metrics-box">
+            <p>✅ The number of actual mistakes you correctly flagged: {evaluationMetrics.practice.TP}</p>
+            <p>⚠️ The number of things you marked as wrong that were actually correct: {evaluationMetrics.practice.FP}</p>
+            <p>❌ The number of real mistakes you missed: {evaluationMetrics.practice.FN}</p>
+          </div>
+        )}
         <button
           className="retry-btn"
           onClick={() => {
